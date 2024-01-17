@@ -1,21 +1,12 @@
 package posg
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	_ "github.com/lib/pq"
-)
-
-const (
-	host     = "172.17.0.2"
-	port     = 5432
-	user     = "postgres"
-	password = "admin"
-	dbname   = "postgres"
 )
 
 type Provincia struct {
@@ -69,54 +60,27 @@ func (est Estacion) String() string {
 	return fmt.Sprintf("prov: %d, nombre: %s", est.Provincia.ID, est.Nombre)
 }
 
-var db *sql.DB
-
-func closeConnection() {
-	db.Close()
-	fmt.Println("Connection close")
-}
-
-func init() {
-
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	fmt.Println(connStr)
-	var err error
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if db != nil {
-		fmt.Println("Succesful connection")
-	}
-
-}
-
 func Truncate(table string) error {
+	conn, _ := New()
 	query := fmt.Sprintf("TRUNCATE TABLE %s;", table)
 
-	_, err := db.Exec(query)
+	_, err := conn.db.Exec(query)
 	if err != nil {
 		log.Println("Error truncateing table", err)
 		return err
 	}
 
 	log.Println("Truncate ok")
+	conn.Close()
 	return nil
 }
 
 func InsertStations(estaciones []Estacion) {
-
+	conn, _ := New()
 	// Iterar sobre la slice e insertar en la tabla
 	for _, estacion := range estaciones {
 		fmt.Printf("%s\n", estacion)
-		_, err := db.Exec(`
+		_, err := conn.db.Exec(`
 				INSERT INTO meteo.station (
 					prov, station_code, station_name, under_plastic, active, visible,
 					longitude, latitude, altitude, xutm, yutm, huso
@@ -131,12 +95,14 @@ func InsertStations(estaciones []Estacion) {
 			log.Fatal(err)
 		}
 	}
-	closeConnection()
+	conn.Close()
 	fmt.Println("Data inserted")
 }
 
 func InsertMeasure(data []byte, provId int, stationId int) error {
 	var measure Measurement
+
+	conn, _ := New()
 	fmt.Println("Insert Measure")
 
 	if err := json.Unmarshal(data, &measure); err != nil {
@@ -168,7 +134,7 @@ func InsertMeasure(data []byte, provId int, stationId int) error {
 		$15, $16, $17, 
 		$18, $19, $20, 
 		$21, $22, $23);`
-	_, err = db.Exec(insertStr,
+	_, err = conn.db.Exec(insertStr,
 		measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion,
 		measure.Fecha, measure.TempMax, measure.TempMin,
 		measure.TempMedia, measure.HorMinTempMax, measure.HorMinTempMin,
@@ -182,5 +148,6 @@ func InsertMeasure(data []byte, provId int, stationId int) error {
 		fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
 		log.Fatal(err)
 	}
+	conn.Close()
 	return nil
 }

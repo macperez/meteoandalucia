@@ -15,3 +15,7 @@ clean:
 	@echo "Proyecto limpio."
 
 
+compile:
+	@echo "Building ..."
+	@go build -o $(BINARY_CLIENT_NAME) $(MAIN_PATH)
+	@echo "Compilation done! . See bin folder "
