@@ -3,14 +3,15 @@ package apirest
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/macperez/meteoandalucia/internal/posg"
 	"io"
 	"net/http"
+
+	"github.com/macperez/meteoandalucia/internal/posg"
 )
 
 const URL_BASE string = "https://www.juntadeandalucia.es/agriculturaypesca/ifapa/riaws"
 
-func GetStations() {
+func GetStations(insert bool) {
 	apiURL := "/estaciones"
 
 	resp, err := http.Get(URL_BASE + apiURL)
@@ -33,8 +34,15 @@ func GetStations() {
 		fmt.Println("Error trying to decode JSON:", err)
 		return
 	}
-	fmt.Printf("Trying to insert %d stations", len(estaciones))
-	posg.InsertStations(estaciones)
+	if insert {
+		fmt.Printf("Trying to insert %d stations", len(estaciones))
+		posg.InsertStations(estaciones)
+	} else {
+		for _, est := range estaciones {
+			fmt.Printf("provincia: %d | codigo_estacion = %d | nombre_estacion = %s\n", est.Provincia.ID, est.CodigoEstacion, est.Nombre)
+		}
+	}
+
 }
 
 func GetMeasurement(provId int, stationId int, dateStr string, ethoAlg bool, persist bool) {
@@ -60,6 +68,38 @@ func GetMeasurement(provId int, stationId int, dateStr string, ethoAlg bool, per
 	fmt.Println("JSON:")
 	fmt.Println(string(body))
 	if persist {
-		posg.InsertMeasure(body, provId, stationId)
+		posg.InsertOneMeasure(body, provId, stationId)
 	}
+}
+
+func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr string, ethoAlg bool, persist bool) {
+
+	apiURL := URL_BASE + fmt.Sprintf("/datosdiarios/%d/%d/%s/%s/%t", provId, stationId, fromDateStr, toDateStr, false)
+	fmt.Println(apiURL)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		fmt.Println("Request Error :", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("HTTP ERROR::", resp.StatusCode)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	if persist {
+		posg.InsertMeasures(body, provId, stationId)
+	} else {
+		fmt.Println("JSON:")
+		fmt.Println(string(body))
+
+	}
+
 }

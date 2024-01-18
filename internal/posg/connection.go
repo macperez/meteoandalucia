@@ -49,5 +49,4 @@ func (conn *DBConnection) Close() {
 		conn.db.Close()
 		conn.isOpen = false
 	}
-	fmt.Println("Connection close")
 }

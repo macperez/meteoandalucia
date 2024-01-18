@@ -56,6 +56,17 @@ type Measurement struct {
 	Et0             float64 `json:"et0"`
 }
 
+type ResultStation struct {
+	ProvCode    int
+	Province    string
+	StationCode int
+	StationName string
+}
+
+func (res ResultStation) String() string {
+	return fmt.Sprintf("%d %s %d %s ", res.ProvCode, res.Province, res.StationCode, res.StationName)
+}
+
 func (est Estacion) String() string {
 	return fmt.Sprintf("prov: %d, nombre: %s", est.Provincia.ID, est.Nombre)
 }
@@ -99,16 +110,7 @@ func InsertStations(estaciones []Estacion) {
 	fmt.Println("Data inserted")
 }
 
-func InsertMeasure(data []byte, provId int, stationId int) error {
-	var measure Measurement
-
-	conn, _ := New()
-	fmt.Println("Insert Measure")
-
-	if err := json.Unmarshal(data, &measure); err != nil {
-		return err
-	}
-
+func insertMeasure(conn *DBConnection, measure Measurement, provId int, stationId int) error {
 	dat, err := time.Parse("2006-01-02", measure.FechaStr)
 	if err != nil {
 		return err
@@ -147,7 +149,75 @@ func InsertMeasure(data []byte, provId int, stationId int) error {
 	if err != nil {
 		fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
 		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
+func InsertMeasures(data []byte, provId int, stationId int) error {
+	var measures []Measurement
+	conn, _ := New()
+	if err := json.Unmarshal(data, &measures); err != nil {
+		return err
+	}
+	count := 1
+	for _, measure := range measures {
+
+		err := insertMeasure(conn, measure, provId, stationId)
+		if err != nil {
+			fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
+			log.Fatal(err)
+			break
+		}
+		count++
+
+	}
+	fmt.Printf("%d measurements inserted ", count)
+	conn.Close()
+	return nil
+}
+
+func InsertOneMeasure(data []byte, provId int, stationId int) error {
+	var measure Measurement
+
+	conn, _ := New()
+	fmt.Println("Insert Measure")
+
+	if err := json.Unmarshal(data, &measure); err != nil {
+		return err
+	}
+	err := insertMeasure(conn, measure, provId, stationId)
+	if err != nil {
+		fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
+		log.Fatal(err)
 	}
 	conn.Close()
 	return nil
+}
+
+func GetStations() {
+	conn, _ := New()
+	stationsQuery := `
+	select s.prov as prov_code, p.name as province,  
+		s.station_code, station_name  
+	from meteo.station s
+	join meteo.provincias p on p.postal_code = s.prov 
+	order by p."name" , station_code`
+	res, err := conn.db.Query(stationsQuery)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for res.Next() {
+
+		var resStation ResultStation
+		err := res.Scan(&resStation.ProvCode, &resStation.Province, &resStation.StationCode, &resStation.StationName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("%v\n", resStation)
+	}
+	conn.Close()
 }
