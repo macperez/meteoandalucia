@@ -23,15 +23,11 @@ func main() {
 			from = strings.Trim(from, " ")
 			province, _ := cmd.Flags().GetInt("province")
 			station, _ := cmd.Flags().GetInt("station")
-			fmt.Printf("Province = %d, station = %d, %s, %s\n", province, station, from, to)
-
 			if to == "" {
 				apirest.GetMeasurement(province, station, from, true, insert)
 			} else {
 				apirest.GetMeasurements(province, station, from, to, true, insert)
 			}
-			//apirest.GetMeasurement(4, 1, "2023-01-16", true, false)
-			//apirest.GetMeasurements()
 		},
 	}
 
@@ -55,16 +51,38 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Getting stations...")
 			if !insert {
-				posg.GetStations()
+				stations := posg.GetStations()
+				for _, st := range stations {
+					fmt.Printf("ProvId = %d; prov = %s; stationId = %d; station = %s\n", st.ProvCode, st.Province, st.StationCode, st.StationName)
+				}
+
 			} else {
 				apirest.GetStations(insert)
 			}
 
 		},
 	}
+
+	var getMeasurementsAllStationsCmd = &cobra.Command{
+		Use:   "get-measurements-all",
+		Short: "Get measurements of all stations",
+		Run: func(cmd *cobra.Command, args []string) {
+			from, _ := cmd.Flags().GetString("from")
+			to, _ := cmd.Flags().GetString("to")
+			to = strings.Trim(to, " ")
+			from = strings.Trim(from, " ")
+			apirest.GetMeasurementsAll(from, to, insert)
+
+		},
+	}
+	getMeasurementsAllStationsCmd.Flags().StringVarP(&fromDate, "from", "f", " ", "Date for which to get the time (format: yyyy-mm-dd)")
+	getMeasurementsAllStationsCmd.Flags().StringVarP(&toDate, "to", "t", " ", "Date for which to get the time (format: yyyy-mm-dd)")
+	getMeasurementsAllStationsCmd.MarkFlagRequired("from")
+	getMeasurementsAllStationsCmd.MarkFlagRequired("to")
 	rootCmd.PersistentFlags().BoolVar(&insert, "insert", false, "Insert into database")
-	rootCmd.AddCommand(getMeasurementsCmd, getStationsCmd)
+	rootCmd.AddCommand(getMeasurementsCmd, getStationsCmd, getMeasurementsAllStationsCmd)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 	}
+
 }

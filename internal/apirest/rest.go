@@ -75,7 +75,6 @@ func GetMeasurement(provId int, stationId int, dateStr string, ethoAlg bool, per
 func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr string, ethoAlg bool, persist bool) {
 
 	apiURL := URL_BASE + fmt.Sprintf("/datosdiarios/%d/%d/%s/%s/%t", provId, stationId, fromDateStr, toDateStr, false)
-	fmt.Println(apiURL)
 	resp, err := http.Get(apiURL)
 	if err != nil {
 		fmt.Println("Request Error :", err)
@@ -84,7 +83,7 @@ func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr st
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println("HTTP ERROR::", resp.StatusCode)
+		fmt.Printf("HTTP ERROR for province %d and station %d :: %d\n", provId, stationId, resp.StatusCode)
 		return
 	}
 
@@ -95,6 +94,8 @@ func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr st
 	}
 
 	if persist {
+
+		fmt.Printf("Inserting prov %d, station %d ...(%s / %s)\n", provId, stationId, fromDateStr, toDateStr)
 		posg.InsertMeasures(body, provId, stationId)
 	} else {
 		fmt.Println("JSON:")
@@ -102,4 +103,11 @@ func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr st
 
 	}
 
+}
+
+func GetMeasurementsAll(from string, to string, insert bool) {
+	stations := posg.GetStations()
+	for _, station := range stations {
+		GetMeasurements(station.ProvCode, station.StationCode, from, to, true, insert)
+	}
 }

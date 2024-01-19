@@ -147,7 +147,7 @@ func insertMeasure(conn *DBConnection, measure Measurement, provId int, stationI
 		measure.Bateria, measure.FechaUtlMod, measure.Et0)
 
 	if err != nil {
-		fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
+		fmt.Printf("Error in row %d %d %s\n", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
 		log.Fatal(err)
 		return err
 	}
@@ -165,14 +165,14 @@ func InsertMeasures(data []byte, provId int, stationId int) error {
 
 		err := insertMeasure(conn, measure, provId, stationId)
 		if err != nil {
-			fmt.Printf("Error in row %d %d %s", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
+			fmt.Printf("Error in row %d %d %s\n", measure.Estacion.Provincia.ID, measure.Estacion.CodigoEstacion, measure.Fecha)
 			log.Fatal(err)
 			break
 		}
 		count++
 
 	}
-	fmt.Printf("%d measurements inserted ", count)
+	fmt.Printf("%d measurements inserted\n", count)
 	conn.Close()
 	return nil
 }
@@ -195,7 +195,7 @@ func InsertOneMeasure(data []byte, provId int, stationId int) error {
 	return nil
 }
 
-func GetStations() {
+func GetStations() []ResultStation {
 	conn, _ := New()
 	stationsQuery := `
 	select s.prov as prov_code, p.name as province,  
@@ -209,6 +209,7 @@ func GetStations() {
 		log.Fatal(err)
 	}
 
+	var stations []ResultStation
 	for res.Next() {
 
 		var resStation ResultStation
@@ -216,8 +217,8 @@ func GetStations() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		fmt.Printf("%v\n", resStation)
+		stations = append(stations, resStation)
 	}
 	conn.Close()
+	return stations
 }
