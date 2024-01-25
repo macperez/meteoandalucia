@@ -4,14 +4,17 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
-const (
-	host     = "172.17.0.2"
-	port     = 5432
-	user     = "postgres"
-	password = "admin"
-	dbname   = "postgres"
+var (
+	host     = os.Getenv("DATABASE_HOST")
+	port     = os.Getenv("DATABASE_PORT")
+	user     = os.Getenv("DATABASE_USER")
+	password = os.Getenv("DATABASE_PASSWORD")
+	dbname   = os.Getenv("DATABASE_NAME")
 )
 
 type DBConnection struct {
@@ -20,7 +23,7 @@ type DBConnection struct {
 }
 
 func New() (*DBConnection, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
 	var err error
