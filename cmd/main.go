@@ -51,9 +51,10 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Getting stations...")
 			if !insert {
-				stations := posg.GetStations()
+				stations := posg.GetStations(false)
 				for _, st := range stations {
-					fmt.Printf("ProvId = %d; prov = %s; stationId = %d; station = %s\n", st.ProvCode, st.Province, st.StationCode, st.StationName)
+					fmt.Printf("ProvId = %d; prov = %s; stationId = %d; station = %s\n; is active %b", st.ProvCode, st.Province, st.StationCode,
+						st.StationName, st.IsActive)
 				}
 
 			} else {

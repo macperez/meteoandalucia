@@ -106,7 +106,7 @@ func GetMeasurements(provId int, stationId int, fromDateStr string, toDateStr st
 }
 
 func GetMeasurementsAll(from string, to string, insert bool) {
-	stations := posg.GetStations()
+	stations := posg.GetStations(true)
 	for _, station := range stations {
 		GetMeasurements(station.ProvCode, station.StationCode, from, to, true, insert)
 	}

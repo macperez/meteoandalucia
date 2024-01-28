@@ -61,10 +61,11 @@ type ResultStation struct {
 	Province    string
 	StationCode int
 	StationName string
+	IsActive    bool
 }
 
 func (res ResultStation) String() string {
-	return fmt.Sprintf("%d %s %d %s ", res.ProvCode, res.Province, res.StationCode, res.StationName)
+	return fmt.Sprintf("%d %s %d %s %t", res.ProvCode, res.Province, res.StationCode, res.StationName, res.IsActive)
 }
 
 func (est Estacion) String() string {
@@ -195,14 +196,22 @@ func InsertOneMeasure(data []byte, provId int, stationId int) error {
 	return nil
 }
 
-func GetStations() []ResultStation {
+func GetStations(isActive bool) []ResultStation {
 	conn, _ := New()
-	stationsQuery := `
+	var stationsQuery string
+	stationsQuery = `
 	select s.prov as prov_code, p.name as province,  
-		s.station_code, station_name  
+		s.station_code, station_name, active  
 	from meteo.station s
-	join meteo.provincias p on p.postal_code = s.prov 
+	join meteo.provincias p on p.postal_code = s.prov
+	%s 
 	order by p."name" , station_code`
+	if isActive {
+		stationsQuery = fmt.Sprintf(stationsQuery, " where active = true ")
+	} else {
+		stationsQuery = fmt.Sprintf(stationsQuery, "")
+	}
+	fmt.Println(stationsQuery)
 	res, err := conn.db.Query(stationsQuery)
 
 	if err != nil {
@@ -213,7 +222,9 @@ func GetStations() []ResultStation {
 	for res.Next() {
 
 		var resStation ResultStation
-		err := res.Scan(&resStation.ProvCode, &resStation.Province, &resStation.StationCode, &resStation.StationName)
+		err := res.Scan(&resStation.ProvCode, &resStation.Province,
+			&resStation.StationCode, &resStation.StationName,
+			&resStation.IsActive)
 		if err != nil {
 			log.Fatal(err)
 		}
