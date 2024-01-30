@@ -53,7 +53,7 @@ func main() {
 			if !insert {
 				stations := posg.GetStations(false)
 				for _, st := range stations {
-					fmt.Printf("ProvId = %d; prov = %s; stationId = %d; station = %s\n; is active %b", st.ProvCode, st.Province, st.StationCode,
+					fmt.Printf("ProvId = %d; prov = %s; stationId = %d; station = %s\n; is active %t", st.ProvCode, st.Province, st.StationCode,
 						st.StationName, st.IsActive)
 				}
 
