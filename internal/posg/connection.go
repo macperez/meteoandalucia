@@ -53,3 +53,18 @@ func (conn *DBConnection) Close() {
 		conn.isOpen = false
 	}
 }
+
+func Truncate(table string) error {
+	conn, _ := New()
+	query := fmt.Sprintf("TRUNCATE TABLE %s;", table)
+
+	_, err := conn.db.Exec(query)
+	if err != nil {
+		log.Println("Error truncateing table", err)
+		return err
+	}
+
+	log.Println("Truncate ok")
+	conn.Close()
+	return nil
+}

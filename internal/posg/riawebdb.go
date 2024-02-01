@@ -72,21 +72,6 @@ func (est Estacion) String() string {
 	return fmt.Sprintf("prov: %d, nombre: %s", est.Provincia.ID, est.Nombre)
 }
 
-func Truncate(table string) error {
-	conn, _ := New()
-	query := fmt.Sprintf("TRUNCATE TABLE %s;", table)
-
-	_, err := conn.db.Exec(query)
-	if err != nil {
-		log.Println("Error truncateing table", err)
-		return err
-	}
-
-	log.Println("Truncate ok")
-	conn.Close()
-	return nil
-}
-
 func InsertStations(estaciones []Estacion) {
 	conn, _ := New()
 	// Iterar sobre la slice e insertar en la tabla

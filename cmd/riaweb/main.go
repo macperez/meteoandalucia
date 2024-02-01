@@ -82,6 +82,7 @@ func main() {
 	getMeasurementsAllStationsCmd.MarkFlagRequired("to")
 	rootCmd.PersistentFlags().BoolVar(&insert, "insert", false, "Insert into database")
 	rootCmd.AddCommand(getMeasurementsCmd, getStationsCmd, getMeasurementsAllStationsCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 	}

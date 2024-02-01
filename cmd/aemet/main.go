@@ -2,32 +2,12 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/macperez/meteoandalucia/internal/apirest"
 	"github.com/macperez/meteoandalucia/internal/posg"
 	"github.com/spf13/cobra"
 )
-
-func Main1() {
-
-	apikey := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtYW51ZWwuYW50LmNhc3Ryb0BnbWFpbC5jb20iLCJqdGkiOiIyYzkwMzMyMi1hZmJiLTRmZDAtYjRhMS1mZDRiY2M3Yjk0ZmQiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcwNjQ1NzQ4NCwidXNlcklkIjoiMmM5MDMzMjItYWZiYi00ZmQwLWI0YTEtZmQ0YmNjN2I5NGZkIiwicm9sZSI6IiJ9.BWMQJc9_ZpJ9OeBRO29UhL95Wp8zPLQ2PN6r3uuYa4E"
-	url := "https://opendata.aemet.es/opendata/api/valores/climatologicos/inventarioestaciones/todasestaciones/?api_key=" + apikey
-
-	req, _ := http.NewRequest("GET", url, nil)
-
-	req.Header.Add("cache-control", "no-cache")
-	res, _ := http.DefaultClient.Do(req)
-
-	defer res.Body.Close()
-	body, _ := io.ReadAll(res.Body)
-
-	fmt.Println(res)
-	fmt.Println(string(body))
-
-}
 
 func main() {
 	var insert bool
@@ -62,7 +42,7 @@ func main() {
 			to, _ := cmd.Flags().GetString("to")
 			to = strings.Trim(to, " ")
 			from = strings.Trim(from, " ")
-			apirest.GetMeasurementsAll(from, to, insert)
+			apirest.GetMeasurementsAllAemet(from, to, insert)
 
 		},
 	}
@@ -70,8 +50,36 @@ func main() {
 	getMeasurementsAllStationsCmd.Flags().StringVarP(&toDate, "to", "t", " ", "Date for which to get the time (format: yyyy-mm-dd)")
 	getMeasurementsAllStationsCmd.MarkFlagRequired("from")
 	getMeasurementsAllStationsCmd.MarkFlagRequired("to")
+
+	var getMeasurementStationCmd = &cobra.Command{
+		Use:   "get-measurements",
+		Short: "Get measurements of given station",
+		Run: func(cmd *cobra.Command, args []string) {
+			from, _ := cmd.Flags().GetString("from")
+			to, _ := cmd.Flags().GetString("to")
+			to = strings.Trim(to, " ")
+			from = strings.Trim(from, " ")
+			station, _ := cmd.Flags().GetString("station")
+			station = strings.Trim(station, " ")
+			err := apirest.GetAemetMeasurements(station, from, to, insert)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+		},
+	}
+	var station string
+	getMeasurementStationCmd.Flags().StringVarP(&fromDate, "from", "f", " ", "Date for which to get the time (format: yyyy-mm-dd)")
+	getMeasurementStationCmd.Flags().StringVarP(&toDate, "to", "t", " ", "Date for which to get the time (format: yyyy-mm-dd)")
+	getMeasurementStationCmd.Flags().StringVarP(&station, "station", "s", " ", "Code for the station")
+	getMeasurementStationCmd.MarkFlagRequired("from")
+	getMeasurementStationCmd.MarkFlagRequired("to")
+	getMeasurementStationCmd.MarkFlagRequired("station")
+
 	rootCmd.PersistentFlags().BoolVar(&insert, "insert", false, "Insert into database")
-	rootCmd.AddCommand(getMeasurementsAllStationsCmd, getStationsCmd)
+	rootCmd.AddCommand(getMeasurementsAllStationsCmd, getMeasurementStationCmd, getStationsCmd)
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 	}
