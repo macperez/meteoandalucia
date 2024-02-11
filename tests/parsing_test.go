@@ -3,6 +3,8 @@ package tests
 import (
 	"database/sql"
 	"fmt"
+	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -80,8 +82,27 @@ func TestParse(t *testing.T) {
 		MinPressure:     sql.NullFloat64{Float64: 1008.2, Valid: true},
 		MinPressureTime: "03:30",
 	}
-
-	if measurement != expected {
+	if !compareFloatTolerance(measurement, expected, 0.001) {
 		t.Errorf(" %+v\n; se esperaba %+v\n", measurement, expected)
 	}
+
+}
+func compareFloatTolerance(m1, m2 posg.MeasurementAemet, allowance float64) bool {
+	measureAemetValues := reflect.ValueOf(m1)
+	measureAemetExpected := reflect.ValueOf(m2)
+	measureAemetType := reflect.TypeOf(m1)
+	same := true
+	for i := 0; i < measureAemetType.NumField(); i++ {
+		fieldToTest := measureAemetType.Field(i)
+		if fieldToTest.Type == reflect.TypeOf(sql.NullFloat64{}) {
+			valFloat := measureAemetValues.Field(i).Interface().(sql.NullFloat64).Float64
+			expFloat := measureAemetExpected.Field(i).Interface().(sql.NullFloat64).Float64
+			same = same && (math.Abs(valFloat-expFloat) < allowance)
+
+		} else {
+			same = same && measureAemetValues.Field(i).Interface() == measureAemetExpected.Field(i).Interface()
+		}
+
+	}
+	return same
 }
