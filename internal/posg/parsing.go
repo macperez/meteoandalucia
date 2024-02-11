@@ -75,7 +75,7 @@ func str2NullFloat64(str *string, result *sql.NullFloat64) error {
 		value, err := strconv.ParseFloat(*str, 32)
 		if err != nil {
 
-			return err
+			*result = sql.NullFloat64{Float64: value, Valid: false}
 		}
 		*result = sql.NullFloat64{Float64: value, Valid: true}
 
