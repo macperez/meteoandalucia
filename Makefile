@@ -1,32 +1,16 @@
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := check
 
-MAIN_RIAWEB_PATH=./cmd/riaweb
-MAIN_AEMET_PATH=./cmd/aemet
-BINARY_PATH=bin
-EXEEXT=$(shell go env GOEXE)
-BINARY_RIAWEB_CLIENT_NAME=$(BINARY_PATH)/meteoandalucia$(EXEEXT)
-BINARY_AEMET_CLIENT_NAME=$(BINARY_PATH)/aemet$(EXEEXT)
+.PHONY: sync check test inventory
 
-.PHONY: build client-run clean compile-riaweb compile-aemet
+sync:
+	cd python && uv sync --locked
 
-build: compile-aemet
+check:
+	cd python && uv run --locked ruff check .
+	cd python && uv run --locked ruff format --check .
 
-client-run: compile-aemet
-	@$(BINARY_AEMET_CLIENT_NAME) $(ARGS)
+test:
+	cd python && uv run --locked pytest
 
-clean:
-	@echo "Limpiando el proyecto..."
-	@go clean ./cmd/aemet ./cmd/riaweb
-	@rm -f $(BINARY_PATH)/*
-	@echo "Proyecto limpio."
-
-
-compile-riaweb:
-	@echo "Building riaweb client..."
-	@go build -o $(BINARY_RIAWEB_CLIENT_NAME) $(MAIN_RIAWEB_PATH)
-	@echo "Binary: $(BINARY_RIAWEB_CLIENT_NAME)"
-
-compile-aemet:
-	@echo "Building AEMET client..."
-	@go build -o $(BINARY_AEMET_CLIENT_NAME) $(MAIN_AEMET_PATH)
-	@echo "Binary: $(BINARY_AEMET_CLIENT_NAME)"
+inventory:
+	cd python && uv run --locked python src/scripts/aemet_inventory.py

@@ -1,39 +1,164 @@
-﻿# MeteoAndalucía · Python
+# MeteoAndalucía · Python
 
-Entorno para scripts Python del proyecto, gestionado con uv y separado del código Go.
-Utiliza Python 3.12 (ver `.python-version`). No instala un paquete ni una CLI.
-
-Desde esta carpeta:
-
-```sh
-uv sync
-```
-
-`uv sync` crea `.venv` e instala las dependencias y herramientas de desarrollo.
-Versiona `uv.lock` para reproducir las dependencias. En CI utiliza `uv sync --locked`.
+Implementación Python de AEMET, RIAweb y PostgreSQL. Requiere uv y Python 3.12.
+Desde `python/` ejecuta `uv sync --locked`. El paquete se instala en modo editable;
+no se registra ninguna herramienta CLI.
 
 ## Estructura
 
-- `src/scripts/`: scripts Python del proyecto.
-- `tests/`: pruebas de los scripts cuando se añada funcionalidad.
-- `pyproject.toml`: dependencias y configuración de pytest y Ruff.
-- `.python-version`: versión de Python utilizada por uv.
+```text
+src/
+  meteoandalucia/
+    api/                  # HTTP, inventario y medidas AEMET/RIAweb
+    db/                   # Conexión y repositorios PostgreSQL
+    config.py             # Carga explícita de .env y variables
+    parsing.py            # Fechas, números y correspondencias de columnas
+    provinces.py          # Alias de provincias AEMET a slugs del catálogo
+    services.py           # Consultas e importación por estación o por lotes
+    stations_csv.py        # Lectura y exportación del inventario
+  scripts/                # Ejecuciones concretas; sin parser de argumentos
+ tests/                   # Pruebas sin llamadas a servicios externos
+```
 
-Para ejecutar un script que añadas a `src/scripts/`:
+## Configuración
+
+Copia `.env.example` de la raíz a `.env` y configura `API_KEY` y las variables
+`DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`,
+`DATABASE_NAME` y `DATABASE_SSLMODE`. Las variables del entorno tienen prioridad.
+Los scripts cargan el `.env` de la raíz del repositorio, independientemente del
+CWD. Los módulos no consultan APIs ni abren conexiones al importarse.
+El inventario AEMET necesita API_KEY pero no PostgreSQL. RIAweb no necesita API_KEY.
+
+## Scripts
+
+Para descargar directamente los datos climatológicos diarios de **todas las estaciones**,
+configura `START` y `END` en `src/scripts/aemet_daily_csv.py` y ejecuta desde `python/`:
 
 ```sh
-uv run python src/scripts/nombre_del_script.py
+uv run python src/scripts/aemet_daily_csv.py
 ```
+
+Consulta el endpoint `diarios/datos/fechaini/.../fechafin/.../todasestaciones`,
+descarga el enlace `datos` y guarda CSV separados en
+`data/aemet_diarios_FECHAINICIAL_FECHAFINAL/`. Incluye el día final completo (UTC).
+Conserva todos los campos de la
+respuesta, textos, comas decimales e indicadores como `Ip`. Si no recibe registros,
+no crea ni sobrescribe el archivo. Este script no utiliza PostgreSQL ni crea tablas.
+Para históricos largos divide el periodo en bloques de 15 días, guarda los CSV
+en esa carpeta, con nombres `INICIOBLOQUE_FINBLOQUE.csv`. No combina los archivos.
+Si se interrumpe, vuelve a ejecutar el mismo script para reutilizar los bloques ya
+descargados; cada bloque se guarda de forma atómica al completar su descarga.
+
+Ejecutar desde `python/`:
+
+```sh
+uv run python src/scripts/aemet_inventory.py
+uv run python src/scripts/riaweb_stations.py
+```
+
+El inventario AEMET se imprime ordenado y exporta a `data/estaciones.csv` de la raíz.
+Sobrescribe ese archivo únicamente al ejecutar el script. Conserva UTF-8, códigos
+como texto y coordenadas originales. La consulta RIAweb imprime JSON; permite
+persistir las estaciones cambiando `PERSIST` a `True` en el script.
+
+Para importar el CSV local en una transacción:
+
+```sh
+uv run python src/scripts/import_aemet_inventory.py
+```
+
+Acepta `provincia` o `provincia_str` en la cabecera. Valida columnas, duplicados,
+altitud y formatos de coordenadas e indicativo sinóptico; conserva ceros iniciales.
+Busca la provincia por slug, normalizando tildes y alias explícitos (ARABA/ALAVA,
+BIZKAIA, GIPUZKOA, BALEARES y STA. CRUZ DE TENERIFE). Si falta una provincia, falla
+toda la importación. Actualiza estaciones existentes y convierte indsinop vacío a NULL.
+
+Para consultar medidas, edita las constantes de `src/scripts/daily_measurements.py`
+y ejecútalo:
+
+```sh
+uv run python src/scripts/daily_measurements.py
+```
+
+Configura `PROVIDER`, `START`, `END`, `STATION`, `PROVINCE`, `ALL_STATIONS`, `ET0`
+y `PERSIST`. Las fechas usan YYYY-MM-DD. END vacío consulta un día. Por defecto no
+se escribe en PostgreSQL. ALL_STATIONS requiere END y consulta estaciones de la
+base de datos: las ocho provincias andaluzas para AEMET, las activas para RIAweb.
+Los lotes continúan tras un fallo, devuelven errores por estación y el script
+termina con error si alguna falla. Cada estación se confirma en su propia transacción.
+
+## Uso desde Python
+
+```python
+from meteoandalucia.api.aemet import AemetClient
+from meteoandalucia.config import api_key, load_environment
+from meteoandalucia.db.aemet import AemetRepository
+from meteoandalucia.services import aemet_measurements
+
+load_environment()
+client = AemetClient(api_key())
+repository = AemetRepository()
+rows = aemet_measurements(client, repository, "5783", "2023-01-01", "2023-01-02")
+# persist=True inserta las medidas; por defecto solo devuelve el JSON.
+```
+
+`RiawebClient` ofrece `stations()`, `measurement(province, station, day, et0=True)`
+y `measurements(province, station, start, end, et0=True)`.
+`RiawebRepository` ofrece `stations(active_only=False)`, `insert_stations(rows)`,
+`insert_measurement(row, province, station)` e `insert_measurements(rows, province, station)`.
+`AemetRepository` ofrece `stations(provinces=ANDALUSIA)` (`None` para todo el país),
+`import_stations_csv(path)` e `insert_measurements(rows)`.
+`services.measurements_all(...)` coordina ambos proveedores.
+`db.connection` ofrece `connect()`, `ping()` y `truncate(schema, table)`; esta última
+solo debe invocarse cuando se quiera vaciar expresamente una tabla.
+
+Las conexiones son context managers: confirman al terminar y revierten ante errores.
+Las medidas mantienen la semántica INSERT histórica: una medida AEMET duplicada
+produce error por la restricción estación/fecha; no se sobrescribe automáticamente.
+Los números vacíos y marcas Ip/Acum/Var se guardan como NULL; números desconocidos
+inválidos producen error en vez de convertirse silenciosamente a cero. Las respuestas
+originales siguen disponibles en los clientes y servicios; no se archivan automáticamente.
+
+## Base de datos
+
+Para una base **nueva**, ejecutar los scripts SQL de la raíz en este orden:
+
+1. `sql/aemet_ddl.sql` (incluye comunidades, provincias, estaciones y `aemet.measurement`).
+2. `sql/comunidades_inserts.sql`.
+3. `sql/provincias_inserts.sql`.
+4. `sql/measurements_ddl.sql` (medidas AEMET y tablas RIAweb).
+
+`comunidades_ddl.sql` permite crear comunidades por separado; no lo ejecutes además
+de `aemet_ddl.sql` en la misma base nueva. Los DDL no son migraciones de una base
+existente y no se ejecutan automáticamente. `meteobackup.sql` se conserva como
+backup histórico; no se necesita cargarlo para preparar la base nueva.
+Las tablas y columnas de medidas mantienen los nombres usados por el código anterior,
+incluidos `meteo.daily_measurement.batery` y `dateutlmod`.
+
+`aemet.measurement` es la nueva estructura para los 27 campos de los CSV diarios,
+con ID autoincremental y unicidad por `(indicativo, fecha)`. Conserva los nombres
+originales del CSV (los que tienen mayúsculas se entrecomillan en SQL).
+Las medidas numéricas usarán NULL para vacíos y punto decimal al importarse;
+`prec` y los campos de hora son texto para conservar `Ip`, `Acum`, `Varias`
+y anomalías del origen. Los metadatos históricos de estación se guardan en cada fila,
+sin exigir que el indicativo siga en el inventario actual. Esta tabla todavía no
+se usa en los repositorios de medidas existentes, que mantienen `daily_measurement`.
+Su DDL se prepara sin ejecutar ni importar datos.
+
+Las rutas de datos se centralizan en `meteoandalucia.config.DATA_DIR`, que apunta
+a `data/` en la raíz. La carpeta está excluida del seguimiento de Git.
 
 ## Desarrollo
 
 ```sh
 uv run ruff check .
 uv run ruff format --check .
-uv run ruff format .
+uv run pytest
+uv build
 ```
 
-Cuando existan pruebas, ejecútalas con `uv run pytest`.
-
-Añade dependencias con `uv add nombre` y herramientas de desarrollo con
-`uv add --dev nombre`. Para eliminar una dependencia, usa `uv remove nombre`.
+Las pruebas usan HTTP y conexiones simuladas: no consumen cuota AEMET ni escriben
+en la base configurada. La prueba del catálogo local verifica los nombres de las
+provincias del CSV cuando existe. Para una prueba real de extremo a extremo se
+necesitan credenciales de API y una base de pruebas preparada con los DDL.
+Las dependencias se añaden con `uv add` o `uv add --dev`. Versiona `uv.lock`.

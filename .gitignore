@@ -1,23 +1,17 @@
-# Compilados de Go y librerías
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.a
-*.o
-*.test
-/bin/*
-# El exportador AEMET guarda datos CSV junto al ejecutable.
-!/bin/*.csv
-/dist/
-/build/
+# Distribuciones y artefactos de construcción de Python
+dist/
+build/
+
+# Datos locales descargados
+/data/
 
 # Entornos y archivos compilados de Python
 .venv/
 venv/
 __pycache__/
 *.py[cod]
+*.pyd
+*.so
 *.egg-info/
 .eggs/
 
@@ -34,7 +28,6 @@ __pycache__/
 # Resultados de pruebas y cobertura
 .coverage
 .coverage.*
-coverage.out
 coverage.xml
 coverage.html
 htmlcov/
