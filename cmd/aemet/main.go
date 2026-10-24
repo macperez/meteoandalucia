@@ -1,87 +1,87 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+	"text/tabwriter"
+	"time"
 
-	"github.com/macperez/meteoandalucia/internal/apirest"
-	"github.com/macperez/meteoandalucia/internal/posg"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	var insert bool
-	var rootCmd = &cobra.Command{Use: "aemet"}
+	if err := newRootCommand().Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-	var fromDate string
-	var toDate string
-
-	var getStationsCmd = &cobra.Command{
-		Use:   "get-stations",
-		Short: "Get stations",
-		Args:  cobra.ExactArgs(0),
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Getting stations from AEMET...")
-			if !insert {
-				stations := posg.GetAemetStations()
-				for _, st := range stations {
-					fmt.Printf("ProvId = %d; prov = %s; stationId = %s; station = %s\n", st.ProvCode, st.Province, st.StationCode,
-						st.StationName)
-				}
-
+func newRootCommand() *cobra.Command {
+	var list, exportCSV bool
+	cmd := &cobra.Command{
+		Use:           "aemet [--list] [--csv]",
+		Short:         "Consulta el inventario de estaciones de AEMET",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !list && !exportCSV {
+				return cmd.Help()
 			}
-
-		},
-	}
-
-	var getMeasurementsAllStationsCmd = &cobra.Command{
-		Use:   "get-measurements-all",
-		Short: "Get measurements of all stations",
-		Run: func(cmd *cobra.Command, args []string) {
-			from, _ := cmd.Flags().GetString("from")
-			to, _ := cmd.Flags().GetString("to")
-			to = strings.Trim(to, " ")
-			from = strings.Trim(from, " ")
-			apirest.GetMeasurementsAllAemet(from, to, insert)
-
-		},
-	}
-	getMeasurementsAllStationsCmd.Flags().StringVarP(&fromDate, "from", "f", " ", "Date for which to get the time (format: yyyy-mm-dd)")
-	getMeasurementsAllStationsCmd.Flags().StringVarP(&toDate, "to", "t", " ", "Date for which to get the time (format: yyyy-mm-dd)")
-	getMeasurementsAllStationsCmd.MarkFlagRequired("from")
-	getMeasurementsAllStationsCmd.MarkFlagRequired("to")
-
-	var getMeasurementStationCmd = &cobra.Command{
-		Use:   "get-measurements",
-		Short: "Get measurements of given station",
-		Run: func(cmd *cobra.Command, args []string) {
-			from, _ := cmd.Flags().GetString("from")
-			to, _ := cmd.Flags().GetString("to")
-			to = strings.Trim(to, " ")
-			from = strings.Trim(from, " ")
-			station, _ := cmd.Flags().GetString("station")
-			station = strings.Trim(station, " ")
-			err := apirest.GetAemetMeasurements(station, from, to, insert)
+			if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("leer .env: %w", err)
+			}
+			key := strings.TrimSpace(os.Getenv("API_KEY"))
+			if key == "" {
+				return fmt.Errorf("falta API_KEY: añade tu token de AEMET al archivo .env (API_KEY=tu_token)")
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
+			defer cancel()
+			stations, err := newAemetClient(key).stations(ctx)
 			if err != nil {
-				fmt.Println(err)
+				return err
 			}
-
+			sort.Slice(stations, func(i, j int) bool {
+				if stations[i].Province != stations[j].Province {
+					return stations[i].Province < stations[j].Province
+				}
+				return stations[i].Code < stations[j].Code
+			})
+			if exportCSV {
+				executable, err := os.Executable()
+				if err != nil {
+					return fmt.Errorf("localizar ejecutable: %w", err)
+				}
+				path := filepath.Join(filepath.Dir(executable), "estaciones.csv")
+				if err := exportStationsCSV(path, stations); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "CSV exportado correctamente (%d estaciones): %s\n", len(stations), path); err != nil {
+					return err
+				}
+			}
+			if !list {
+				return nil
+			}
+			out := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
+			if _, err := fmt.Fprintln(out, "CÓDIGO\tPROVINCIA\tESTACIÓN\tALTITUD (m)\tLATITUD\tLONGITUD\tIND. SINÓPTICO"); err != nil {
+				return err
+			}
+			for _, station := range stations {
+				if _, err := fmt.Fprintf(out, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", station.Code, station.Province, station.Name, station.Altitude, station.Latitude, station.Longitude, station.SynopticCode); err != nil {
+					return err
+				}
+			}
+			return out.Flush()
 		},
 	}
-	var station string
-	getMeasurementStationCmd.Flags().StringVarP(&fromDate, "from", "f", " ", "Date for which to get the time (format: yyyy-mm-dd)")
-	getMeasurementStationCmd.Flags().StringVarP(&toDate, "to", "t", " ", "Date for which to get the time (format: yyyy-mm-dd)")
-	getMeasurementStationCmd.Flags().StringVarP(&station, "station", "s", " ", "Code for the station")
-	getMeasurementStationCmd.MarkFlagRequired("from")
-	getMeasurementStationCmd.MarkFlagRequired("to")
-	getMeasurementStationCmd.MarkFlagRequired("station")
-
-	rootCmd.PersistentFlags().BoolVar(&insert, "insert", false, "Insert into database")
-	rootCmd.AddCommand(getMeasurementsAllStationsCmd, getMeasurementStationCmd, getStationsCmd)
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
-
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-	}
-
+	cmd.CompletionOptions.DisableDefaultCmd = true
+	cmd.Flags().BoolVar(&list, "list", false, "Lista todas las estaciones del inventario de AEMET")
+	cmd.Flags().BoolVar(&exportCSV, "csv", false, "Exporta estaciones.csv en la carpeta del ejecutable")
+	return cmd
 }

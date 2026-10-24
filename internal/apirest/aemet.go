@@ -40,7 +40,10 @@ func GetAemetMeasurements(stationId string, fromDateStr string, toDateStr string
 	apiURL := fmt.Sprintf("valores/climatologicos/diarios/datos/fechaini/%sT00%%3A00%%3A00UTC/fechafin/%sT00%%3A00%%3A00UTC/estacion/%s",
 		fromDateStr, toDateStr, stationId)
 	apiURL = URL_BASE_AEMET + apiURL
-	req, _ := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return err
+	}
 	req.Header.Add("cache-control", "no-cache")
 	req.Header.Add("api_key", api_key)
 
@@ -57,7 +60,10 @@ func GetAemetMeasurements(stationId string, fromDateStr string, toDateStr string
 		return fmt.Errorf("does not exist data for %s in the period [%s, %s]", stationId, fromDateStr, toDateStr)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 
 	if err = json.Unmarshal(body, &response); err != nil {
 		fmt.Println("Request Error :", err)
@@ -67,7 +73,7 @@ func GetAemetMeasurements(stationId string, fromDateStr string, toDateStr string
 	if response.Estado != http.StatusOK {
 		return fmt.Errorf("error %d: does not exist data for %s in the period [%s, %s]", response.Estado, stationId, fromDateStr, toDateStr)
 	}
-	resp, _ = http.Get(response.Datos)
+	resp, err = http.Get(response.Datos)
 
 	if err != nil {
 		fmt.Println("Request Error :", err)
