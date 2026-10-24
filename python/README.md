@@ -1,4 +1,4 @@
-# MeteoAndalucía · Python
+﻿# MeteoAndalucía · Python
 
 Implementación Python de AEMET, RIAweb y PostgreSQL. Requiere uv y Python 3.12.
 Desde `python/` ejecuta `uv sync --locked`. El paquete se instala en modo editable;
@@ -123,27 +123,50 @@ originales siguen disponibles en los clientes y servicios; no se archivan autom�
 
 Para una base **nueva**, ejecutar los scripts SQL de la raíz en este orden:
 
-1. `sql/aemet_ddl.sql` (incluye comunidades, provincias, estaciones y `aemet.measurement`).
+1. `sql/aemet_ddl.sql` (incluye comunidades, provincias, estaciones y `raw.aemet_measurement`).
 2. `sql/comunidades_inserts.sql`.
 3. `sql/provincias_inserts.sql`.
-4. `sql/measurements_ddl.sql` (medidas AEMET y tablas RIAweb).
 
 `comunidades_ddl.sql` permite crear comunidades por separado; no lo ejecutes además
 de `aemet_ddl.sql` en la misma base nueva. Los DDL no son migraciones de una base
 existente y no se ejecutan automáticamente. `meteobackup.sql` se conserva como
 backup histórico; no se necesita cargarlo para preparar la base nueva.
-Las tablas y columnas de medidas mantienen los nombres usados por el código anterior,
-incluidos `meteo.daily_measurement.batery` y `dateutlmod`.
 
-`aemet.measurement` es la nueva estructura para los 27 campos de los CSV diarios,
-con ID autoincremental y unicidad por `(indicativo, fecha)`. Conserva los nombres
-originales del CSV (los que tienen mayúsculas se entrecomillan en SQL).
-Las medidas numéricas usarán NULL para vacíos y punto decimal al importarse;
-`prec` y los campos de hora son texto para conservar `Ip`, `Acum`, `Varias`
-y anomalías del origen. Los metadatos históricos de estación se guardan en cada fila,
-sin exigir que el indicativo siga en el inventario actual. Esta tabla todavía no
-se usa en los repositorios de medidas existentes, que mantienen `daily_measurement`.
-Su DDL se prepara sin ejecutar ni importar datos.
+`raw.aemet_measurement` es la tabla de entrada para los 27 campos de los CSV diarios:
+todas las columnas son `text`, admiten vacíos y no tienen restricciones de unicidad
+ni claves foráneas. Conserva los nombres originales del CSV (los que tienen
+mayúsculas se entrecomillan en SQL). No convierte fechas, números con coma, `Ip`,
+`Acum`, `Varias` ni horas anómalas. El tipado y la deduplicación se harán después
+mediante scripts SQL. La tabla tipada de medidas queda pendiente.
+
+Para cargar con COPY será necesario indicar las columnas explícitamente, siguiendo
+el orden de la cabecera de cada fichero: `HEADER` no mapea los nombres y los CSV
+pueden tener diferentes columnas u orden. `FORCE_NOT_NULL` con la lista de columnas
+cargadas permite conservar los campos vacíos como texto vacío.
+
+La herramienta de carga de un CSV se ejecuta desde `python/`:
+
+```sh
+uv run python src/scripts/load_raw_csv_measurement.py --csv ../data/aemet_diarios_2015-01-01_2026-10-01/2015-01-16_2015-01-30.csv
+```
+
+Con el entorno activado también puede ejecutarse con `python` directamente.
+La ruta se interpreta respecto al directorio de ejecución; admite rutas absolutas.
+El script carga el `.env` de la raíz y utiliza las variables `DATABASE_*`.
+La tabla `raw.aemet_measurement` debe existir previamente; el comando no ejecuta DDL.
+
+`AemetRepository.load_raw_csv_measurement(path)` implementa la carga en `db/aemet.py`,
+mediante la conexión de `db/connection.py`. Utiliza COPY FROM STDIN en una transacción,
+sin cargar el fichero completo en memoria. Rechaza columnas desconocidas o duplicadas
+y filas con un número incorrecto de campos. Admite columnas opcionales ausentes o
+en distinto orden; requiere `fecha` e `indicativo` en la cabecera. No transforma
+los valores, ni siquiera fechas o números inválidos. Los vacíos presentes quedan
+como texto vacío; las columnas no incluidas quedan en NULL. Si ocurre un error,
+se revierte todo el archivo y el comando termina con código distinto de cero.
+Cada ejecución añade filas: cargar el mismo archivo de nuevo genera duplicados.
+
+Los métodos históricos de medidas siguen apuntando a `daily_measurement` y no
+quedan preparados con estos DDL. La estructura de RIAweb se abordará más adelante.
 
 Las rutas de datos se centralizan en `meteoandalucia.config.DATA_DIR`, que apunta
 a `data/` en la raíz. La carpeta está excluida del seguimiento de Git.

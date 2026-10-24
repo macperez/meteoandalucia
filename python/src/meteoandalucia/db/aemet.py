@@ -1,5 +1,8 @@
 """Persistencia AEMET, compatible con los nombres de columnas existentes."""
 
+import csv
+from pathlib import Path
+
 from psycopg import sql
 from psycopg.rows import dict_row
 
@@ -10,10 +13,78 @@ from meteoandalucia.stations_csv import read_stations_csv
 
 ANDALUSIA = (4, 11, 14, 18, 21, 23, 29, 41)
 
+RAW_MEASUREMENT_COLUMNS = frozenset(
+    (
+        "fecha",
+        "indicativo",
+        "nombre",
+        "provincia",
+        "altitud",
+        "tmed",
+        "prec",
+        "tmin",
+        "horatmin",
+        "tmax",
+        "horatmax",
+        "hrMedia",
+        "hrMax",
+        "horaHrMax",
+        "hrMin",
+        "horaHrMin",
+        "pintMax",
+        "horaPIntMax",
+        "dir",
+        "velmedia",
+        "racha",
+        "horaracha",
+        "presMax",
+        "horaPresMax",
+        "presMin",
+        "horaPresMin",
+        "sol",
+    )
+)
+
 
 class AemetRepository:
     def __init__(self, connection_factory=connect):
         self.connection_factory = connection_factory
+
+    def load_raw_csv_measurement(self, path: str | Path) -> int:
+        """Carga un CSV en raw.aemet_measurement en una transacción, sin transformar valores.
+
+        COPY FROM STDIN evita necesitar acceso al fichero desde el servidor PostgreSQL.
+        Las columnas se identifican por la cabecera; el resto queda en NULL.
+        Los campos vacíos presentes se conservan como cadenas vacías.
+        """
+        with Path(path).open(encoding="utf-8-sig", newline="") as source:
+            reader = csv.reader(source, strict=True)
+            header = next(reader, None)
+            if not header or len(header) != len(set(header)):
+                raise ValueError("Cabecera CSV vacía o con columnas duplicadas")
+            unknown = set(header) - RAW_MEASUREMENT_COLUMNS
+            if unknown:
+                raise ValueError(f"Columnas CSV desconocidas: {', '.join(sorted(unknown))}")
+            if not {"fecha", "indicativo"} <= set(header):
+                raise ValueError("La cabecera CSV debe incluir fecha e indicativo")
+            query = sql.SQL("COPY raw.aemet_measurement ({}) FROM STDIN").format(
+                sql.SQL(", ").join(map(sql.Identifier, header))
+            )
+            count = 0
+            with self.connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    with cursor.copy(query) as copy:
+                        for row in reader:
+                            if not row:
+                                continue
+                            if len(row) != len(header):
+                                raise ValueError(
+                                    f"Línea {reader.line_num}: se esperaban {len(header)} "
+                                    f"columnas y se encontraron {len(row)}"
+                                )
+                            copy.write_row(row)
+                            count += 1
+        return count
 
     def stations(self, provinces: tuple[int, ...] | None = ANDALUSIA) -> list[dict]:
         query = """SELECT provincia_id AS prov_code, p.provincia AS province,
