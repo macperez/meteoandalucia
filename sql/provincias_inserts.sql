@@ -2,7 +2,7 @@
 -- Conserva los códigos oficiales y omite capital_id.
 BEGIN;
 
-INSERT INTO aemet.provincia (id, slug, provincia, comunidad_id) VALUES
+INSERT INTO public.provincia (id, slug, provincia, comunidad_id) VALUES
 (1, 'alava', 'Álava', 16),
 (2, 'albacete', 'Albacete', 8),
 (3, 'alicante', 'Alicante', 10),

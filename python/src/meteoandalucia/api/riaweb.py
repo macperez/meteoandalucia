@@ -1,7 +1,7 @@
 """Inventario y medidas diarias de RIAweb."""
 
 from meteoandalucia.api.http import APIError, JSONClient, records
-from meteoandalucia.parsing import date_range
+from meteoandalucia.parsing import validate_date_range
 
 BASE_URL = "https://www.juntadeandalucia.es/agriculturaypesca/ifapa/riaws"
 
@@ -15,7 +15,7 @@ class RiawebClient:
         return records(self.http.get(f"{self.base_url}/estaciones"))
 
     def measurement(self, province: int, station: int, day: str, et0: bool = True) -> dict:
-        date_range(day, day)
+        validate_date_range(day, day)
         value = self.http.get(
             f"{self.base_url}/datosdiarios/{int(province)}/{int(station)}/{day}/{str(et0).lower()}"
         )
@@ -26,7 +26,7 @@ class RiawebClient:
     def measurements(
         self, province: int, station: int, start: str, end: str, et0: bool = True
     ) -> list[dict]:
-        date_range(start, end)
+        validate_date_range(start, end)
         return records(
             self.http.get(
                 f"{self.base_url}/datosdiarios/{int(province)}/{int(station)}/"

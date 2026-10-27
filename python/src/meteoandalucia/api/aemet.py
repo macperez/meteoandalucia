@@ -3,7 +3,7 @@
 from urllib.parse import quote
 
 from meteoandalucia.api.http import APIError, JSONClient, records
-from meteoandalucia.parsing import date_range
+from meteoandalucia.parsing import validate_date_range
 
 BASE_URL = "https://opendata.aemet.es/opendata/api"
 
@@ -37,7 +37,7 @@ class AemetClient:
         return sorted(rows, key=lambda row: (row.get("provincia", ""), row.get("indicativo", "")))
 
     def measurements(self, station: str, start: str, end: str) -> list[dict]:
-        date_range(start, end)
+        validate_date_range(start, end)
         if not station.strip():
             raise ValueError("El indicativo es obligatorio")
         return self._download(
@@ -48,7 +48,7 @@ class AemetClient:
 
     def daily_all_stations(self, start: str, end: str) -> list[dict]:
         """Consulta directa de datos diarios de todas las estaciones, sin PostgreSQL."""
-        date_range(start, end)
+        validate_date_range(start, end)
         return self._download(
             "valores/climatologicos/diarios/datos/"
             f"fechaini/{start}T00%3A00%3A00UTC/"

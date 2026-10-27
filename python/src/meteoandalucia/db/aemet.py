@@ -89,7 +89,7 @@ class AemetRepository:
     def stations(self, provinces: tuple[int, ...] | None = ANDALUSIA) -> list[dict]:
         query = """SELECT provincia_id AS prov_code, p.provincia AS province,
             indicativo AS station_code, nombre AS station_name
-            FROM aemet.station s JOIN aemet.provincia p ON p.id = s.provincia_id"""
+            FROM aemet.station s JOIN public.provincia p ON p.id = s.provincia_id"""
         params = ()
         if provinces is not None:
             query += " WHERE provincia_id = ANY(%s)"
@@ -105,7 +105,7 @@ class AemetRepository:
         query = """INSERT INTO aemet.station
             (indicativo, nombre, provincia_id, altitud, latitud, longitud, indsinop)
             SELECT %(indicativo)s, %(nombre)s, id, %(altitud)s,
-                %(latitud)s, %(longitud)s, %(indsinop)s FROM aemet.provincia
+                %(latitud)s, %(longitud)s, %(indsinop)s FROM public.provincia
             WHERE slug = %(slug)s
             ON CONFLICT (indicativo) DO UPDATE SET
                 nombre=EXCLUDED.nombre, provincia_id=EXCLUDED.provincia_id,

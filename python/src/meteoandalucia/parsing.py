@@ -4,7 +4,7 @@ import math
 from datetime import date
 
 
-def date_range(start: str, end: str) -> tuple[date, date]:
+def validate_date_range(start: str, end: str) -> tuple[date, date]:
     first, last = date.fromisoformat(start), date.fromisoformat(end)
     if first.isoformat() != start or last.isoformat() != end:
         raise ValueError("Las fechas deben tener formato YYYY-MM-DD")
@@ -68,7 +68,7 @@ RIAWEB_FIELDS = {
 
 
 def parse_measurement(row: dict, fields: dict) -> dict:
-    result = {"measurement_date": date_range(row["fecha"], row["fecha"])[0]}
+    result = {"measurement_date": validate_date_range(row["fecha"], row["fecha"])[0]}
     for column, key in fields.items():
         value = row.get(key)
         if column.startswith("time_") or column == "dateutlmod":

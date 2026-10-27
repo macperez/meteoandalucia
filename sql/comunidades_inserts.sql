@@ -2,7 +2,7 @@
 -- Conserva los IDs originales y omite capital_id.
 BEGIN;
 
-INSERT INTO aemet.comunidades (id, slug, comunidad) VALUES
+INSERT INTO public.comunidades (id, slug, comunidad) VALUES
 (1, 'andalucia', 'Andalucía'),
 (2, 'aragon', 'Aragón'),
 (3, 'principado-de-asturias', 'Principado de Asturias'),
@@ -25,8 +25,8 @@ INSERT INTO aemet.comunidades (id, slug, comunidad) VALUES
 
 -- Los IDs explícitos no avanzan la secuencia de la columna identity.
 SELECT setval(
-    pg_get_serial_sequence('aemet.comunidades', 'id'),
-    (SELECT max(id) FROM aemet.comunidades)
+    pg_get_serial_sequence('public.comunidades', 'id'),
+    (SELECT max(id) FROM public.comunidades)
 );
 
 COMMIT;

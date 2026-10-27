@@ -121,6 +121,24 @@ originales siguen disponibles en los clientes y servicios; no se archivan autom�
 
 ## Base de datos
 
+### Inventario RIAweb en riamet
+
+Ejecuta `sql/riamet_ddl.sql` una vez para crear `riamet.station`. Este esquema
+es independiente de las tablas históricas `meteo` usadas por `RiawebRepository`.
+Después, desde `python/`, importa el inventario descargado:
+
+```sh
+uv run python src/scripts/import_riamet_inventory.py
+```
+
+`RiametRepository` (`meteoandalucia.db.riamet`) lee
+`data/riamet/estaciones.csv`, incluidas las estaciones inactivas. Valida todo el
+CSV antes de conectar y utiliza las variables `DATABASE_*` del `.env` raíz.
+Convierte booleanos y coordenadas UTM con coma decimal; conserva las coordenadas
+geográficas originales. La clave es `(provincia_id, codigo_estacion)` y las
+estaciones existentes se actualizan en una única transacción. Un fallo revierte
+toda la importación. El script no ejecuta el DDL automáticamente.
+
 Para una base **nueva**, ejecutar los scripts SQL de la raíz en este orden:
 
 1. `sql/aemet_ddl.sql` (incluye comunidades, provincias, estaciones y `raw.aemet_measurement`).
@@ -147,7 +165,7 @@ cargadas permite conservar los campos vacíos como texto vacío.
 La herramienta de carga de un CSV se ejecuta desde `python/`:
 
 ```sh
-uv run python src/scripts/load_raw_csv_measurement.py --csv ../data/aemet_diarios_2015-01-01_2026-10-01/2015-01-16_2015-01-30.csv
+uv run python src/scripts/load_raw_csv_measurement.py aemet --csv ../data/aemet_diarios_2015-01-01_2026-10-01/2015-01-16_2015-01-30.csv
 ```
 
 Con el entorno activado también puede ejecutarse con `python` directamente.
@@ -185,3 +203,41 @@ en la base configurada. La prueba del catálogo local verifica los nombres de la
 provincias del CSV cuando existe. Para una prueba real de extremo a extremo se
 necesitan credenciales de API y una base de pruebas preparada con los DDL.
 Las dependencias se añaden con `uv add` o `uv add --dev`. Versiona `uv.lock`.
+
+
+### CSV hist?ricos RIAweb
+
+Desde `python/`, ejecuta `uv run python src/scripts/riaweb_daily_csv.py`.
+Lee todas las estaciones (tambi?n inactivas) de `data/riamet/estaciones.csv`
+y consulta las ocho provincias andaluzas desde 2015-01-01 hasta la fecha actual
+en Europe/Madrid. Guarda un CSV por provincia, estaci?n y a?o en
+`data/riamet/diarios_INICIO_FIN/`, conservando los campos originales.
+Se desactiva el c?lculo ET0 porque provoca HTTP 500 en algunos hist?ricos.
+Realiza hasta cuatro consultas simult?neas y reintenta los fallos transitorios.
+`resumen.json` registra los bloques descargados, las respuestas HTTP 404
+y los errores. No se crea CSV para respuestas sin registros. La misma ejecuci?n
+se puede reanudar: omite bloques completados y reintenta errores; un HTTP 404
+queda registrado como respuesta del proveedor, sin inferir cobertura hist?rica.
+No escribe en PostgreSQL.
+
+
+### Carga raw por fuente
+
+`load_raw_csv_measurement.py --help` lista las fuentes admitidas (`aemet`,
+`riaweb`). Desde `python/`:
+
+```sh
+uv run python src/scripts/load_raw_csv_measurement.py aemet --csv ../data/archivo.csv
+uv run python src/scripts/load_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26/14_2_2015-01-01_2015-12-31.csv
+uv run python src/scripts/load_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26
+```
+
+`--csv` admite un archivo o una carpeta, sin buscar en subcarpetas. RIAweb carga
+todos los archivos del lote en una ?nica transacci?n en `raw.riamet_measurement`;
+un fallo revierte el lote completo. AEMET conserva una transacci?n por archivo.
+Las tablas deben existir previamente: el cargador no ejecuta DDL.
+RIAweb obtiene `provincia_id` y `codigo_estacion` del nombre
+`provincia_estacion_INICIO_FIN.csv`; las dem?s columnas se mapean por cabecera.
+Todos los valores se conservan como texto, incluidos vac?os, espacios y anomal?as.
+Se rechazan cabeceras desconocidas o duplicadas y filas de longitud incorrecta.
+Cada ejecuci?n a?ade filas: repetir una carga genera duplicados.

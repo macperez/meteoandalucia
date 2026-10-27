@@ -39,9 +39,9 @@ def riaweb_measurements(
 
 def measurements_all(client, repository, start: str, end: str, *, provider: str, persist=False):
     """Continúa tras un fallo por estación y devuelve los errores al llamador."""
-    from meteoandalucia.parsing import date_range
+    from meteoandalucia.parsing import validate_date_range
 
-    date_range(start, end)
+    validate_date_range(start, end)
     if provider not in {"aemet", "riaweb"}:
         raise ValueError("Proveedor desconocido")
     stations = (

@@ -6,11 +6,11 @@ from pathlib import Path
 
 from meteoandalucia.api.http import APIError
 from meteoandalucia.measurements_csv import export_daily_csv
-from meteoandalucia.parsing import date_range
+from meteoandalucia.parsing import validate_date_range
 
 
 def date_blocks(start: str, end: str, days: int = 15):
-    current, last = date_range(start, end)
+    current, last = validate_date_range(start, end)
     if days < 1:
         raise ValueError("El tamaño de bloque debe ser positivo")
     while current <= last:
