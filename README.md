@@ -1,5 +1,8 @@
 # MeteoAndalucía
 
+[Catálogo de fuentes meteorológicas](docs/fuentes-meteorologicas.md): redes y
+portales con registros de interés para Andalucía, accesos y verificaciones pendientes.
+
 Proyecto Python modular para consultar datos meteorológicos de AEMET y RIAweb,
 exportar e importar el inventario CSV y almacenar estaciones y medidas en PostgreSQL.
 Gestionado con uv; el código y las pruebas están en `python/`. La implementación
@@ -8,7 +11,7 @@ Go se ha sustituido por Python.
 ```sh
 cd python
 uv sync --locked
-uv run python src/scripts/aemet_inventory.py
+uv run python src/scripts/download_aemet_stations.py
 ```
 
 Configura primero el `.env` de la raíz usando `.env.example`. Consulta la
@@ -22,4 +25,4 @@ las ejecuciones concretas están en `python/src/scripts/`.
 - `sql/`: estructura, catálogos y backup histórico.
 - `data/`: inventario y CSV diarios locales, excluidos del seguimiento de Git.
 
-Desde la raíz, Make ofrece `sync`, `check`, `test` e `inventory` como atajos a uv.
+Desde la raíz, Make ofrece `sync`, `check`, `test` e `stations` como atajos a uv.

@@ -85,7 +85,7 @@ def test_database_failure_rolls_back(tmp_path):
 
 @pytest.fixture
 def script():
-    path = Path(__file__).parents[1] / "src/scripts/load_raw_csv_measurement.py"
+    path = Path(__file__).parents[1] / "src/scripts/import_raw_csv_measurement.py"
     spec = importlib.util.spec_from_file_location("raw_loader_script", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

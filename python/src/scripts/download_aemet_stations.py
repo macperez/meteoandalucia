@@ -1,8 +1,8 @@
 """Descarga y exporta el inventario sin utilizar PostgreSQL."""
 
+from meteoandalucia.aemet.stations_csv import export_stations_csv
 from meteoandalucia.api.aemet import AemetClient
-from meteoandalucia.config import DATA_DIR, api_key, load_environment
-from meteoandalucia.stations_csv import export_stations_csv
+from meteoandalucia.common.config import DATA_DIR, api_key, load_environment
 
 
 def main():

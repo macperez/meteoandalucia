@@ -3,7 +3,7 @@
 from urllib.parse import quote
 
 from meteoandalucia.api.http import APIError, JSONClient, records
-from meteoandalucia.parsing import validate_date_range
+from meteoandalucia.common.parsing import validate_date_range
 
 BASE_URL = "https://opendata.aemet.es/opendata/api"
 

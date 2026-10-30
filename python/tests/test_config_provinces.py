@@ -3,9 +3,9 @@ import re
 
 import pytest
 
-from meteoandalucia.config import DATA_DIR, ROOT, api_key, load_environment
-from meteoandalucia.provinces import province_slug
-from meteoandalucia.stations_csv import read_stations_csv
+from meteoandalucia.aemet.provinces import province_slug
+from meteoandalucia.aemet.stations_csv import read_stations_csv
+from meteoandalucia.common.config import DATA_DIR, ROOT, api_key, load_environment
 
 
 def test_environment_priority(tmp_path, monkeypatch):

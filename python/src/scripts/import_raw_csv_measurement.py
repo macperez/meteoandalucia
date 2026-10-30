@@ -7,7 +7,7 @@ from pathlib import Path
 
 import psycopg
 
-from meteoandalucia.config import load_environment
+from meteoandalucia.common.config import load_environment
 from meteoandalucia.db.aemet import AemetRepository
 from meteoandalucia.db.riamet import RiametRepository
 

@@ -6,10 +6,10 @@ from pathlib import Path
 from psycopg import sql
 from psycopg.rows import dict_row
 
+from meteoandalucia.aemet.measurements import parse_aemet_measurement
+from meteoandalucia.aemet.provinces import province_slug
+from meteoandalucia.aemet.stations_csv import read_stations_csv
 from meteoandalucia.db.connection import connect
-from meteoandalucia.parsing import parse_aemet_measurement
-from meteoandalucia.provinces import province_slug
-from meteoandalucia.stations_csv import read_stations_csv
 
 ANDALUSIA = (4, 11, 14, 18, 21, 23, 29, 41)
 

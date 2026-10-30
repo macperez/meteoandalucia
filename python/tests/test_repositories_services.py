@@ -2,10 +2,10 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from meteoandalucia.aemet.stations_csv import HEADER
+from meteoandalucia.application.measurements import measurements_all, riaweb_measurements
 from meteoandalucia.db.aemet import AemetRepository
 from meteoandalucia.db.riaweb import RiawebRepository
-from meteoandalucia.services import measurements_all, riaweb_measurements
-from meteoandalucia.stations_csv import HEADER
 
 
 def database():

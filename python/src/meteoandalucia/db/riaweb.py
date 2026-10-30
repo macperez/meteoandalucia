@@ -4,7 +4,7 @@ from psycopg import sql
 from psycopg.rows import dict_row
 
 from meteoandalucia.db.connection import connect
-from meteoandalucia.parsing import parse_riaweb_measurement
+from meteoandalucia.riaweb.measurements import parse_riaweb_measurement
 
 STATION_FIELDS = {
     "station_code": "codigoEstacion",

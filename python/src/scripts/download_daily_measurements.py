@@ -4,14 +4,14 @@ import json
 
 from meteoandalucia.api.aemet import AemetClient
 from meteoandalucia.api.riaweb import RiawebClient
-from meteoandalucia.config import api_key, load_environment
-from meteoandalucia.db.aemet import AemetRepository
-from meteoandalucia.db.riaweb import RiawebRepository
-from meteoandalucia.services import (
+from meteoandalucia.application.measurements import (
     aemet_measurements,
     measurements_all,
     riaweb_measurements,
 )
+from meteoandalucia.common.config import api_key, load_environment
+from meteoandalucia.db.aemet import AemetRepository
+from meteoandalucia.db.riaweb import RiawebRepository
 
 PROVIDER = "aemet"  # aemet o riaweb
 START = ""  # YYYY-MM-DD

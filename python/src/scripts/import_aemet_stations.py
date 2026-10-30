@@ -1,6 +1,6 @@
 """Importa el CSV local; ejecutar explícitamente tras preparar los catálogos SQL."""
 
-from meteoandalucia.config import DATA_DIR, load_environment
+from meteoandalucia.common.config import DATA_DIR, load_environment
 from meteoandalucia.db.aemet import AemetRepository
 
 

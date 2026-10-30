@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := check
 
-.PHONY: sync check test inventory
+.PHONY: sync check test stations
 
 sync:
 	cd python && uv sync --locked
@@ -12,5 +12,5 @@ check:
 test:
 	cd python && uv run --locked pytest
 
-inventory:
-	cd python && uv run --locked python src/scripts/aemet_inventory.py
+stations:
+	cd python && uv run --locked python src/scripts/download_aemet_stations.py

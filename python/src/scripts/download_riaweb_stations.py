@@ -3,7 +3,7 @@
 import json
 
 from meteoandalucia.api.riaweb import RiawebClient
-from meteoandalucia.config import load_environment
+from meteoandalucia.common.config import load_environment
 from meteoandalucia.db.riaweb import RiawebRepository
 
 PERSIST = False

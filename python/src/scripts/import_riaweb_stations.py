@@ -1,6 +1,6 @@
 """Importa data/riamet/estaciones.csv tras ejecutar sql/riamet_ddl.sql."""
 
-from meteoandalucia.config import DATA_DIR, load_environment
+from meteoandalucia.common.config import DATA_DIR, load_environment
 from meteoandalucia.db.riamet import RiametRepository
 
 

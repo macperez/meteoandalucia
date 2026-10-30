@@ -1,9 +1,9 @@
 """Descarga los datos diarios de todas las estaciones a data/, sin base de datos."""
 
 from meteoandalucia.api.aemet import AemetClient
-from meteoandalucia.config import DATA_DIR, api_key, load_environment
-from meteoandalucia.daily_download import download_daily_range
-from meteoandalucia.parsing import validate_date_range
+from meteoandalucia.application.aemet_download import download_daily_range
+from meteoandalucia.common.config import DATA_DIR, api_key, load_environment
+from meteoandalucia.common.parsing import validate_date_range
 
 START = "2015-01-01"  # Fecha inicial: YYYY-MM-DD
 END = "2026-10-01"  # Fecha final incluida: YYYY-MM-DD

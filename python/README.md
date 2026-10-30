@@ -11,11 +11,10 @@ src/
   meteoandalucia/
     api/                  # HTTP, inventario y medidas AEMET/RIAweb
     db/                   # Conexión y repositorios PostgreSQL
-    config.py             # Carga explícita de .env y variables
-    parsing.py            # Fechas, números y correspondencias de columnas
-    provinces.py          # Alias de provincias AEMET a slugs del catálogo
-    services.py           # Consultas e importación por estación o por lotes
-    stations_csv.py        # Lectura y exportación del inventario
+    common/               # Configuraci?n, fechas, n?meros y exportaci?n CSV gen?rica
+    aemet/                # Medidas, inventario CSV y alias de provincias AEMET
+    riaweb/               # Medidas e inventario CSV RIAweb
+    application/          # Coordinaci?n de consultas y descarga reanudable AEMET
   scripts/                # Ejecuciones concretas; sin parser de argumentos
  tests/                   # Pruebas sin llamadas a servicios externos
 ```
@@ -31,11 +30,16 @@ El inventario AEMET necesita API_KEY pero no PostgreSQL. RIAweb no necesita API_
 
 ## Scripts
 
+Los nombres usan `stations` para estaciones, el prefijo `download_` para obtener
+datos de las APIs y `import_` para cargar CSV en la base de datos. En los scripts
+se usa `riaweb` como proveedor, aunque el esquema de destino se llame `riamet`.
+
+
 Para descargar directamente los datos climatológicos diarios de **todas las estaciones**,
-configura `START` y `END` en `src/scripts/aemet_daily_csv.py` y ejecuta desde `python/`:
+configura `START` y `END` en `src/scripts/download_aemet_daily_csv.py` y ejecuta desde `python/`:
 
 ```sh
-uv run python src/scripts/aemet_daily_csv.py
+uv run python src/scripts/download_aemet_daily_csv.py
 ```
 
 Consulta el endpoint `diarios/datos/fechaini/.../fechafin/.../todasestaciones`,
@@ -52,8 +56,8 @@ descargados; cada bloque se guarda de forma atómica al completar su descarga.
 Ejecutar desde `python/`:
 
 ```sh
-uv run python src/scripts/aemet_inventory.py
-uv run python src/scripts/riaweb_stations.py
+uv run python src/scripts/download_aemet_stations.py
+uv run python src/scripts/download_riaweb_stations.py
 ```
 
 El inventario AEMET se imprime ordenado y exporta a `data/estaciones.csv` de la raíz.
@@ -64,7 +68,7 @@ persistir las estaciones cambiando `PERSIST` a `True` en el script.
 Para importar el CSV local en una transacción:
 
 ```sh
-uv run python src/scripts/import_aemet_inventory.py
+uv run python src/scripts/import_aemet_stations.py
 ```
 
 Acepta `provincia` o `provincia_str` en la cabecera. Valida columnas, duplicados,
@@ -73,11 +77,11 @@ Busca la provincia por slug, normalizando tildes y alias explícitos (ARABA/ALAV
 BIZKAIA, GIPUZKOA, BALEARES y STA. CRUZ DE TENERIFE). Si falta una provincia, falla
 toda la importación. Actualiza estaciones existentes y convierte indsinop vacío a NULL.
 
-Para consultar medidas, edita las constantes de `src/scripts/daily_measurements.py`
+Para consultar medidas, edita las constantes de `src/scripts/download_daily_measurements.py`
 y ejecútalo:
 
 ```sh
-uv run python src/scripts/daily_measurements.py
+uv run python src/scripts/download_daily_measurements.py
 ```
 
 Configura `PROVIDER`, `START`, `END`, `STATION`, `PROVINCE`, `ALL_STATIONS`, `ET0`
@@ -91,9 +95,9 @@ termina con error si alguna falla. Cada estación se confirma en su propia trans
 
 ```python
 from meteoandalucia.api.aemet import AemetClient
-from meteoandalucia.config import api_key, load_environment
+from meteoandalucia.common.config import api_key, load_environment
 from meteoandalucia.db.aemet import AemetRepository
-from meteoandalucia.services import aemet_measurements
+from meteoandalucia.application.measurements import aemet_measurements
 
 load_environment()
 client = AemetClient(api_key())
@@ -108,7 +112,7 @@ y `measurements(province, station, start, end, et0=True)`.
 `insert_measurement(row, province, station)` e `insert_measurements(rows, province, station)`.
 `AemetRepository` ofrece `stations(provinces=ANDALUSIA)` (`None` para todo el país),
 `import_stations_csv(path)` e `insert_measurements(rows)`.
-`services.measurements_all(...)` coordina ambos proveedores.
+`application.measurements.measurements_all(...)` coordina ambos proveedores.
 `db.connection` ofrece `connect()`, `ping()` y `truncate(schema, table)`; esta última
 solo debe invocarse cuando se quiera vaciar expresamente una tabla.
 
@@ -128,7 +132,7 @@ es independiente de las tablas históricas `meteo` usadas por `RiawebRepository`
 Después, desde `python/`, importa el inventario descargado:
 
 ```sh
-uv run python src/scripts/import_riamet_inventory.py
+uv run python src/scripts/import_riaweb_stations.py
 ```
 
 `RiametRepository` (`meteoandalucia.db.riamet`) lee
@@ -165,7 +169,7 @@ cargadas permite conservar los campos vacíos como texto vacío.
 La herramienta de carga de un CSV se ejecuta desde `python/`:
 
 ```sh
-uv run python src/scripts/load_raw_csv_measurement.py aemet --csv ../data/aemet_diarios_2015-01-01_2026-10-01/2015-01-16_2015-01-30.csv
+uv run python src/scripts/import_raw_csv_measurement.py aemet --csv ../data/aemet_diarios_2015-01-01_2026-10-01/2015-01-16_2015-01-30.csv
 ```
 
 Con el entorno activado también puede ejecutarse con `python` directamente.
@@ -186,8 +190,67 @@ Cada ejecución añade filas: cargar el mismo archivo de nuevo genera duplicados
 Los métodos históricos de medidas siguen apuntando a `daily_measurement` y no
 quedan preparados con estos DDL. La estructura de RIAweb se abordará más adelante.
 
-Las rutas de datos se centralizan en `meteoandalucia.config.DATA_DIR`, que apunta
+Las rutas de datos se centralizan en `meteoandalucia.common.config.DATA_DIR`, que apunta
 a `data/` en la raíz. La carpeta está excluida del seguimiento de Git.
+
+## XML locales Siarweb
+
+Los archivos descargados manualmente están en `data/siarweb/`: el inventario
+`Identificacion_EstacionesClima.xml`, el descriptor `Descripcion_Campos.xml` y
+los históricos `Clim_Diario_*.xml`. Los archivos locales revisados cubren
+2002–2026, aunque se puede seleccionar un único año para importar.
+
+Ejecuta primero `sql/siarweb_ddl.sql` en PostgreSQL. Crea `siarweb.station`,
+`raw.siarweb_measurement` y `siarweb.daily_measurement`. Requiere el catálogo
+`public.provincia` creado y poblado previamente, como los otros esquemas.
+`station.provincia_id` es obligatorio y referencia `public.provincia(id)`;
+las medidas tipadas referencian `station(id_est)`. Incluye comentarios de campos
+y unidades del descriptor.
+Después, desde `python/`, carga primero las estaciones y después las medidas raw:
+
+```sh
+uv run python src/scripts/import_siarweb_stations.py
+uv run python src/scripts/import_raw_xml_measurement.py siarweb --xml ../data/siarweb
+```
+
+Para importar un solo año:
+
+```sh
+uv run python src/scripts/import_raw_xml_measurement.py siarweb --xml ../data/siarweb/Clim_Diario_2026.xml
+```
+
+Las rutas de `--xml` son relativas al directorio de ejecución o absolutas. Cuando
+se indica una carpeta, solo se seleccionan `Clim_Diario_*.xml`, sin subcarpetas;
+no se cargan el inventario ni el descriptor como medidas. Los scripts cargan
+el `.env` raíz y usan `DATABASE_*`. No ejecutan DDL automáticamente.
+
+`common.xml.XMLRecords` lee registros planos de forma incremental; las clases
+`StationsXML` y `MeasurementsXML` contienen las reglas específicas de Siarweb.
+El inventario se valida antes de conectar y se actualiza por `id_est` en una
+transacción. Los metadatos ausentes quedan en NULL. No se modifica el signo de
+las longitudes ni se corrigen coordenadas sospechosas del archivo original.
+
+Las medidas se envían con COPY FROM STDIN sin cargar los XML enteros en memoria.
+Todo el lote usa una transacción: XML malformado, etiquetas desconocidas o errores
+de base de datos revierten el lote y el comando termina con error. Raw conserva
+las etiquetas originales de cada año, textos y el nombre de archivo en
+`source_file`; los elementos vacíos quedan como texto vacío y los ausentes como
+NULL. Las entidades XML se decodifican; no se guarda una copia literal del XML.
+Cada ejecución añade filas: repetir una carga genera duplicados.
+
+La tabla tipada queda preparada para una transformación posterior; estos scripts
+no la rellenan. Antes de hacerlo hay que revisar las variantes anuales y sus
+unidades, deduplicar por estación y fecha y comprobar el inventario. `direccion`
+es `numeric`, porque hay valores fraccionarios pese al tipo entero del descriptor.
+Los campos históricos no descritos se conservan y se comentan sin atribuirles
+unidades o significados no documentados. Los nombres de la fuente en este proyecto
+siguen la carpeta `siarweb`; no se presupone identidad con estaciones de RIAweb
+ni con el portal nacional SiAR.
+
+La revisión local del 30 de octubre de 2026 leyó 80 estaciones y 658.443 medidas.
+Encontró 17 códigos literales de las medidas ausentes del inventario, entre ellos
+`DESC`, `J018 ` y `al008`; no se normalizan ni se crean estaciones ficticias.
+Raw admite esos registros, pero el destino tipado exige una estación existente.
 
 ## Desarrollo
 
@@ -207,7 +270,7 @@ Las dependencias se añaden con `uv add` o `uv add --dev`. Versiona `uv.lock`.
 
 ### CSV hist?ricos RIAweb
 
-Desde `python/`, ejecuta `uv run python src/scripts/riaweb_daily_csv.py`.
+Desde `python/`, ejecuta `uv run python src/scripts/download_riaweb_daily_csv.py`.
 Lee todas las estaciones (tambi?n inactivas) de `data/riamet/estaciones.csv`
 y consulta las ocho provincias andaluzas desde 2015-01-01 hasta la fecha actual
 en Europe/Madrid. Guarda un CSV por provincia, estaci?n y a?o en
@@ -223,13 +286,13 @@ No escribe en PostgreSQL.
 
 ### Carga raw por fuente
 
-`load_raw_csv_measurement.py --help` lista las fuentes admitidas (`aemet`,
+`import_raw_csv_measurement.py --help` lista las fuentes admitidas (`aemet`,
 `riaweb`). Desde `python/`:
 
 ```sh
-uv run python src/scripts/load_raw_csv_measurement.py aemet --csv ../data/archivo.csv
-uv run python src/scripts/load_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26/14_2_2015-01-01_2015-12-31.csv
-uv run python src/scripts/load_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26
+uv run python src/scripts/import_raw_csv_measurement.py aemet --csv ../data/archivo.csv
+uv run python src/scripts/import_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26/14_2_2015-01-01_2015-12-31.csv
+uv run python src/scripts/import_raw_csv_measurement.py riaweb --csv ../data/riamet/diarios_2015-01-01_2026-10-26
 ```
 
 `--csv` admite un archivo o una carpeta, sin buscar en subcarpetas. RIAweb carga

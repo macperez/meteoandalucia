@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from meteoandalucia.api.http import APIError
-from meteoandalucia.daily_download import date_blocks, download_daily_range
+from meteoandalucia.application.aemet_download import date_blocks, download_daily_range
 
 
 def test_blocks_have_no_gaps_or_overlap():

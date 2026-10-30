@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from meteoandalucia.db.riamet import FIELDS, RiametRepository, read_stations_csv
+from meteoandalucia.db.riamet import RiametRepository
+from meteoandalucia.riaweb.stations_csv import FIELDS, read_stations_csv
 
 
 def write_inventory(path, **changes):

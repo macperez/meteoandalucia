@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from meteoandalucia.api.aemet import AemetClient
-from meteoandalucia.measurements_csv import export_daily_csv
+from meteoandalucia.common.csv import export_daily_csv
 
 
 def test_all_stations_direct_endpoint():
@@ -54,6 +54,6 @@ def test_csv_keeps_all_fields_and_original_values(tmp_path):
 def test_empty_response_does_not_overwrite(tmp_path):
     path = tmp_path / "daily.csv"
     path.write_text("existing data", encoding="utf-8")
-    with pytest.raises(ValueError, match="no ha devuelto datos"):
+    with pytest.raises(ValueError, match="No hay registros"):
         export_daily_csv(path, [])
     assert path.read_text(encoding="utf-8") == "existing data"

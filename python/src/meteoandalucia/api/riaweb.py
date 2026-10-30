@@ -1,7 +1,7 @@
 """Inventario y medidas diarias de RIAweb."""
 
 from meteoandalucia.api.http import APIError, JSONClient, records
-from meteoandalucia.parsing import validate_date_range
+from meteoandalucia.common.parsing import validate_date_range
 
 BASE_URL = "https://www.juntadeandalucia.es/agriculturaypesca/ifapa/riaws"
 

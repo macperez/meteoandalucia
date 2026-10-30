@@ -2,14 +2,10 @@ from datetime import date
 
 import pytest
 
-from meteoandalucia.parsing import (
-    AEMET_FIELDS,
-    RIAWEB_FIELDS,
-    nullable_float,
-    parse_aemet_measurement,
-    parse_riaweb_measurement,
-)
-from meteoandalucia.stations_csv import HEADER, export_stations_csv, read_stations_csv
+from meteoandalucia.aemet.measurements import AEMET_FIELDS, parse_aemet_measurement
+from meteoandalucia.aemet.stations_csv import HEADER, export_stations_csv, read_stations_csv
+from meteoandalucia.common.parsing import nullable_float
+from meteoandalucia.riaweb.measurements import RIAWEB_FIELDS, parse_riaweb_measurement
 
 
 @pytest.mark.parametrize(
