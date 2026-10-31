@@ -125,6 +125,27 @@ originales siguen disponibles en los clientes y servicios; no se archivan autom�
 
 ## Base de datos
 
+### Ejecutar DDL con uv
+
+Desde `python/`, el script carga el `.env` de la raiz y reutiliza la conexion
+`meteoandalucia.db.connection.connect` (las variables del entorno tienen prioridad):
+
+```sh
+uv run python src/scripts/execute_ddl.py ../sql/siarweb_ddl.sql
+```
+
+Admite varios archivos y respeta el orden indicado. Por ejemplo, en una base nueva:
+
+```sh
+uv run python src/scripts/execute_ddl.py ../sql/common_ddl.sql ../sql/comunidades_inserts.sql ../sql/provincias_inserts.sql ../sql/siarweb_ddl.sql
+```
+
+Cada archivo se ejecuta completo, sin separar sentencias por punto y coma.
+Los DDL actuales contienen `BEGIN`/`COMMIT`; los archivos sin control explicito
+se confirman o revierten mediante el contexto de conexion. Al fallar un archivo,
+el script devuelve codigo 1 y no ejecuta los siguientes. Los archivos anteriores
+ya confirmados permanecen aplicados. No repetir los CREATE sobre tablas existentes.
+
 ### Inventario RIAweb en riamet
 
 Ejecuta `sql/riamet_ddl.sql` una vez para crear `riamet.station`. Este esquema
@@ -145,14 +166,30 @@ toda la importación. El script no ejecuta el DDL automáticamente.
 
 Para una base **nueva**, ejecutar los scripts SQL de la raíz en este orden:
 
-1. `sql/aemet_ddl.sql` (incluye comunidades, provincias, estaciones y `raw.aemet_measurement`).
+1. `sql/common_ddl.sql` (comunidades, provincias, esquema `raw` y control de calidad).
 2. `sql/comunidades_inserts.sql`.
 3. `sql/provincias_inserts.sql`.
+4. Los DDL de las fuentes necesarias: `sql/aemet_ddl.sql`,
+   `sql/riamet_ddl.sql` y/o `sql/siarweb_ddl.sql`.
 
-`comunidades_ddl.sql` permite crear comunidades por separado; no lo ejecutes además
-de `aemet_ddl.sql` en la misma base nueva. Los DDL no son migraciones de una base
-existente y no se ejecutan automáticamente. `meteobackup.sql` se conserva como
-backup histórico; no se necesita cargarlo para preparar la base nueva.
+Los DDL no son migraciones y no se ejecutan automaticamente. En una base que
+ya tenga los catalogos, ejecutar solo el bloque de `public.control_medida`,
+sus indices y comentarios dentro de una transaccion. No repetir la creacion
+de comunidades y provincias. `meteobackup.sql` es un backup historico.
+
+`public.control_medida` centraliza sospechas de cualquier fuente o capa mediante
+`esquema_origen`, `tabla_origen` y `registro_origen_id`. Esta referencia admite
+un id textual o una clave compuesta serializada de forma estable, sin FK a
+los proveedores. Para raw sin id hay que definir una clave reproducible antes
+de registrar incidencias. `provincia_id` referencia el catalogo comun y puede
+quedar NULL si se desconoce, al igual que una fecha no interpretable. `valor`
+conserva texto para admitir errores de formato.
+
+Cada medida puede incumplir varias reglas. La unicidad por origen, registro,
+variable y regla permite usar `ON CONFLICT DO NOTHING` sin duplicar incidencias
+ni perder su revision (`pendiente`, `dato_valido` o `error_confirmado`).
+La tabla no ejecuta comprobaciones ni modifica medidas: los procesos de
+deteccion se incorporaran despues.
 
 `raw.aemet_measurement` es la tabla de entrada para los 27 campos de los CSV diarios:
 todas las columnas son `text`, admiten vacíos y no tienen restricciones de unicidad

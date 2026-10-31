@@ -1,4 +1,4 @@
--- PostgreSQL: ejecutar después de aemet_ddl.sql y comunidades_inserts.sql.
+-- Ejecutar despues de common_ddl.sql y comunidades_inserts.sql.
 -- Conserva los códigos oficiales y omite capital_id.
 BEGIN;
 

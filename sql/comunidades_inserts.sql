@@ -1,4 +1,4 @@
--- Ejecutar después de comunidades_ddl.sql.
+-- Ejecutar despues de common_ddl.sql.
 -- Conserva los IDs originales y omite capital_id.
 BEGIN;
 

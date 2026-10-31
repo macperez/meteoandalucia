@@ -1,9 +1,10 @@
+-- Requiere ejecutar common_ddl.sql previamente.
 -- XML locales de data/siarweb/. Ejecutar antes de los importadores.
 -- No ejecuta cargas ni transforma raw. Requiere el catalogo public.provincia.
 BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS siarweb;
-CREATE SCHEMA IF NOT EXISTS raw;
+-- El esquema raw se crea en common_ddl.sql.
 
 CREATE TABLE siarweb.station (
     id_est text PRIMARY KEY,

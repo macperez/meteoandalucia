@@ -1,3 +1,4 @@
+-- Requiere ejecutar common_ddl.sql previamente.
 -- Inventario RIAweb y entrada raw de los CSV diarios de data/riamet/.
 -- Ejecutar una vez antes de importar. Requiere el cat?logo public.provincia.
 BEGIN;
@@ -29,7 +30,7 @@ COMMENT ON COLUMN riamet.station.longitud IS 'Coordenada original del proveedor,
 COMMENT ON COLUMN riamet.station.latitud IS 'Coordenada original del proveedor, sin conversión.';
 
 -- Entrada de ficheros CSV RIAweb antes de cualquier transformación SQL.
-CREATE SCHEMA IF NOT EXISTS raw;
+-- El esquema raw se crea en common_ddl.sql.
 
 -- Campos originales como text, sin restricciones de calidad o unicidad.
 -- La provincia y la estación no vienen en el CSV: se obtienen del nombre
